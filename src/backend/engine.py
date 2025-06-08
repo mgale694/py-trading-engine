@@ -70,7 +70,3 @@ class TradingEngine:
 
     def close(self):
         self.conn.close()
-
-if __name__ == '__main__':
-    engine = TradingEngine()
-    print('Trading engine started.')

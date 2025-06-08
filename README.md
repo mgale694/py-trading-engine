@@ -22,8 +22,8 @@ A modular Python trading engine designed for real-time trading, order management
 - **Frontend**: [Streamlit](https://streamlit.io/) for rapid UI development and real-time updates.
 - **Backend**: Python-based trading engine with modular components for order management, matching, and analytics.
 - **Database**:
-  - *Market Data*: (Recommended) [kdb+](https://kx.com/) for high-performance, real-time ticker data storage and retrieval.
-  - *Trade & User Data*: Alternatives such as PostgreSQL, SQLite, or MongoDB can be used for storing trades, orders, and user information.
+  - _Market Data_: (Recommended) [kdb+](https://kx.com/) for high-performance, real-time ticker data storage and retrieval.
+  - _Trade & User Data_: Alternatives such as PostgreSQL, SQLite, or MongoDB can be used for storing trades, orders, and user information.
 
 ## Getting Started
 
@@ -43,6 +43,19 @@ A modular Python trading engine designed for real-time trading, order management
    ```sh
    python src/backend/main.py
    ```
+
+## Backend Class Structure
+
+- **Trader**: Represents a trader/user in the system. Handles authentication, user info, and session management.
+- **Order**: Represents a trade order (buy/sell) with attributes such as user, symbol, side, quantity, price, status, and timestamps.
+- **OrderBook**: Manages all open orders, organizes bids/asks, and provides orderbook summary and volume.
+- **Trade**: Represents an executed trade, storing details of matched orders, price, quantity, and involved traders.
+- **TradingEngine**: Core engine for order placement, order matching, trade execution, and PnL calculation.
+- **PnLCalculator**: Calculates real-time and historical profit and loss for each trader and the overall system.
+- **DatabaseManager**: Handles all interactions with the SQLite database (and future kdb+ integration for market data).
+- **MarketDataFeed**: (Planned) Interface for real-time ticker/market data, with future support for kdb+.
+
+This structure is designed for modularity and extensibility, allowing for easy addition of new features and components as the trading engine evolves.
 
 ## Contributing
 
