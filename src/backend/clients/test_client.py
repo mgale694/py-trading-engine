@@ -22,13 +22,25 @@ def send_orderbook_request(symbol):
     def on_response(ch, method, props, body):
         nonlocal response
         if props.correlation_id == corr_id:
-            response = json.loads(body)
+            try:
+                response = json.loads(body)
+            except Exception as e:
+                response = body.decode() if hasattr(body, 'decode') else str(body)
             ch.basic_ack(delivery_tag=method.delivery_tag)
             ch.stop_consuming()
 
     channel.basic_consume(queue=ORDERBOOK_RESPONSE_QUEUE, on_message_callback=on_response)
 
-    request = {'symbol': symbol}
+    # Add id and timestamp to the order request
+    # TODO: last_trade_price from kdb ticker data in future
+    request = {
+        'symbol': symbol,
+        'id': str(uuid.uuid4()),
+        'timestamp': time.time(),
+        'bid': round(random.uniform(100, 200), 2),
+        'ask': round(random.uniform(100, 200), 2),
+        'last_trade_price': round(random.uniform(100, 200), 2)
+    }
     channel.basic_publish(
         exchange='',
         routing_key=ORDERBOOK_QUEUE,

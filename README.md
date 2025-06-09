@@ -44,6 +44,66 @@ A modular Python trading engine designed for real-time trading, order management
    python src/backend/main.py
    ```
 
+## Running RabbitMQ (for Order Book Server)
+
+This project uses RabbitMQ for messaging between the order book server and clients.
+
+### Install RabbitMQ (macOS)
+
+```sh
+brew install rabbitmq
+```
+
+### Start RabbitMQ
+
+```sh
+brew services start rabbitmq
+```
+
+### Restart RabbitMQ (if needed)
+
+```sh
+brew services restart rabbitmq
+```
+
+You can check the status with:
+
+```sh
+rabbitmqctl status
+```
+
+Make sure RabbitMQ is running before starting the order book server or test clients.
+
+## KDB+ Service Requirement
+
+A kdb+ service must be running in the background for the trading engine to record trades and interact with market data. You can start a kdb+ process (for example, on port 8080) with:
+
+```sh
+q -p 8080
+```
+
+Ensure the `trade` table exists in your kdb+ instance before running the backend server. Example to create a simple trade table in your q session:
+
+```q
+trade:([] id:`symbol$(); timestamp:0n; symbol:`symbol$(); quantity:0N; price:0N)
+```
+
+## Running the Trading Engine and Client
+
+1. **Start the backend server:**
+
+   ```sh
+   python src/backend/main.py
+   ```
+
+   This will start the trading engine and the order book server.
+
+2. **Start a test client (in a new terminal):**
+   ```sh
+   python src/backend/clients/test_client.py
+   ```
+   This will send random orderbook requests to the server and print the responses.
+
 ## Backend Class Structure
 
 - **Trader**: Represents a trader/user in the system. Handles authentication, user info, and session management.
