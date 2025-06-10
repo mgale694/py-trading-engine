@@ -1,4 +1,4 @@
-# py-trading-engine
+# Python Trading Engine
 
 A modular Python trading engine designed for real-time trading, order management, and analytics. This project is structured for extensibility and clarity, with a Streamlit-based frontend, a robust backend trading engine, and a flexible database layer.
 
