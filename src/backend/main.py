@@ -3,7 +3,7 @@ from strategy.basic import BasicStrategy
 import subprocess
 import sys
 import os
-from server.order_book import OrderBookServer
+from servers.order_book import OrderBookServer
 
 if __name__ == '__main__':
     # Initialise the trading engine
