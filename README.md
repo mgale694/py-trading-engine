@@ -117,6 +117,43 @@ trade:([] id:`symbol$(); timestamp:0n; symbol:`symbol$(); quantity:0N; price:0N)
 
 This structure is designed for modularity and extensibility, allowing for easy addition of new features and components as the trading engine evolves.
 
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Clients
+        C1["Client 1 (test_client.py)"]
+        C2["Client 2 (test_client.py)"]
+        C3["Client 3 (test_client.py)"]
+    end
+    subgraph TES[Trading Engine Server]
+        TES1["TES (portfolio1)"]
+        TES2["TES (portfolio2)"]
+    end
+    subgraph Server
+        OBS["Order Book Server (order_book_server.py)"]
+        STRAT["BasicStrategy (basic.py)"]
+    end
+    subgraph Database
+        KDB["KDB+ (trade table)"]
+        SQLITE["SQLite (clients.db)"]
+    end
+
+    C1 --|RabbitMQ|--> TES1
+    C2 --|RabbitMQ|--> TES1
+    C3 --|RabbitMQ|--> TES2
+    TES1 -- manages --> OBS
+    TES2 -- manages --> OBS
+    OBS -- calls --> STRAT
+    STRAT -- inserts/queries --> KDB
+    TES1 -- manages/queries --> SQLITE
+    TES2 -- manages/queries --> SQLITE
+    TES1 -- tracks --> Portfolio1["Portfolio 1 PnL"]
+    TES2 -- tracks --> Portfolio2["Portfolio 2 PnL"]
+```
+
+This diagram shows how clients communicate with the Order Book Server via RabbitMQ, the server uses the strategy for order logic, and the strategy records trades in the KDB+ database.
+
 ## Contributing
 
 Contributions are welcome! Please open issues or submit pull requests for new features, bug fixes, or improvements.
