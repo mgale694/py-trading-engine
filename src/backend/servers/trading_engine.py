@@ -76,28 +76,34 @@ class TradingEngineServer:
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def send_request(self, request, timeout=5):
+    def send_request(self, request, timeout=10, retry=3):
         logger.info(f"Sending request: {request}")
-        self.response = None
-        self.corr_id = str(uuid.uuid4())
-        self.obs_channel.basic_publish(
-            exchange="",
-            routing_key="obs_requests",
-            properties=pika.BasicProperties(
-                reply_to=self.obs_callback_queue,
-                correlation_id=self.corr_id,
-            ),
-            body=json.dumps(request),
-        )
-        start_time = time.time()
-        while self.response is None:
-            self.obs_connection.process_data_events()
-            if time.time() - start_time > timeout:
-                logger.error("Timeout waiting for response from OBS.")
-                break
+        attempt = 0
+        while attempt < retry:
+            self.response = None
+            self.corr_id = str(uuid.uuid4())
+            self.obs_channel.basic_publish(
+                exchange="",
+                routing_key="obs_requests",
+                properties=pika.BasicProperties(
+                    reply_to=self.obs_callback_queue,
+                    correlation_id=self.corr_id,
+                ),
+                body=json.dumps(request),
+            )
+            start_time = time.time()
+            while self.response is None:
+                self.obs_connection.process_data_events()
+                if time.time() - start_time > timeout:
+                    logger.error("Timeout waiting for response from OBS.")
+                    break
+            if self.response is not None:
+                return self.response
+            attempt += 1
+            logger.info(f"Retrying send_request (attempt {attempt + 1}/{retry})...")
         return self.response
 
-    def check_obs_connection(self, timeout=5):
+    def check_obs_connection(self, timeout=10, retry=3):
         # Check OBS connectivity using send_request with timeout
         try:
             response = self.send_request(
@@ -108,9 +114,10 @@ class TradingEngineServer:
                     "description": "Connecting TES to Order Book Server (OBS)",
                 },
                 timeout=timeout,
+                retry=retry,
             )
             if response and response.get("status") == "ok":
-                logger.info("Successfully connected to Order Book Server (OBS).")
+                logger.info(response.get("message", "No message in response"))
                 return True
             else:
                 logger.error("Order Book Server (OBS) did not respond as expected.")

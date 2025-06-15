@@ -22,6 +22,7 @@ class OrderBookServer:
         self.channel.queue_declare(queue=OBS_RESPONSE_QUEUE)
 
     def on_request(self, ch, method, props, body):
+        logger.info(f"Received request: {body}")
         request = json.loads(body)
         action = request.get("action")
         response = {}
