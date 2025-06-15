@@ -8,6 +8,43 @@ A modular Python trading engine designed for real-time trading, order management
 - **src/backend/**: Core trading engine logic, including order matching, orderbook management, and PnL calculations.
 - **src/database/**: Database integration for storing trades, user data, and market data.
 
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Clients
+        C1["Client 1 (test_client.py)"]
+        C2["Client 2 (test_client.py)"]
+        C3["Client 3 (test_client.py)"]
+    end
+    subgraph TES[Trading Engine Server]
+        TES1["TES (portfolio1)"]
+        TES2["TES (portfolio2)"]
+    end
+    subgraph Server
+        OBS["Order Book Server (order_book_server.py)"]
+        STRAT["BasicStrategy (basic.py)"]
+    end
+    subgraph Database
+        KDB["KDB+ (trade table)"]
+        SQLITE["SQLite (clients.db)"]
+    end
+
+    C1 --|RabbitMQ|--> TES1
+    C2 --|RabbitMQ|--> TES1
+    C3 --|RabbitMQ|--> TES2
+    TES1 -- manages --> OBS
+    TES2 -- manages --> OBS
+    OBS -- calls --> STRAT
+    STRAT -- inserts/queries --> KDB
+    TES1 -- manages/queries --> SQLITE
+    TES2 -- manages/queries --> SQLITE
+    TES1 -- tracks --> Portfolio1["Portfolio 1 PnL"]
+    TES2 -- tracks --> Portfolio2["Portfolio 2 PnL"]
+```
+
+This diagram shows how clients communicate with the Order Book Server via RabbitMQ, the server uses the strategy for order logic, and the strategy records trades in the KDB+ database.
+
 ## Features
 
 - **User Authentication**: Traders can securely log in to the platform.
@@ -88,24 +125,41 @@ Ensure the `trade` table exists in your kdb+ instance before running the backend
 trade:([] id:`symbol$(); timestamp:0n; symbol:`symbol$(); quantity:0N; price:0N)
 ```
 
-## Running the Trading Engine and Client
+## Running the Trading Engine and Clients (Manual Startup)
 
-1. **Start the backend server:**
+To run the system, you must have RabbitMQ running for backend messaging. Start the servers and clients in separate terminals as follows:
+
+1. **Start the Order Book Server (OBS):**
 
    ```sh
-   python src/backend/main.py
+   python src/backend/main.py -s OBS
    ```
 
-   This will start the trading engine and the order book server.
+   This launches the Order Book Server, which must be running before the Trading Engine Server can connect.
 
-2. **Start a test client (in a new terminal):**
+2. **Start the Trading Engine Server (TES):**
+
    ```sh
-   python src/backend/clients/test_client.py
+   python src/backend/main.py -s TES
    ```
-   This will send random orderbook requests to the server and print the responses.
+
+   The TES will attempt to connect to the OBS via RabbitMQ. If OBS is not running, TES will log an error and exit.
+
+3. **Start a Trader Client:**
+   ```sh
+   python src/backend/main.py -c trader
+   ```
+   This will connect a trader client to the Trading Engine Server.
+
+You can start multiple clients or servers in separate terminals as needed. Make sure RabbitMQ is running before starting any backend servers or clients.
+
+---
 
 ## Backend Class Structure
 
+- **TraderClient**: Client class that connects to the Trading Engine Server (TES) and sends trading actions (e.g., connect, buy, sell).
+- **TradingEngineServer (TES)**: Handles client registration, portfolio management, and routes trading actions to the order book server.
+- **OrderBookServer (OBS)**: Manages the order book, processes order requests, and interacts with trading strategies.
 - **Trader**: Represents a trader/user in the system. Handles authentication, user info, and session management.
 - **Order**: Represents a trade order (buy/sell) with attributes such as user, symbol, side, quantity, price, status, and timestamps.
 - **OrderBook**: Manages all open orders, organizes bids/asks, and provides orderbook summary and volume.
@@ -116,43 +170,6 @@ trade:([] id:`symbol$(); timestamp:0n; symbol:`symbol$(); quantity:0N; price:0N)
 - **MarketDataFeed**: (Planned) Interface for real-time ticker/market data, with future support for kdb+.
 
 This structure is designed for modularity and extensibility, allowing for easy addition of new features and components as the trading engine evolves.
-
-## System Architecture
-
-```mermaid
-flowchart TD
-    subgraph Clients
-        C1["Client 1 (test_client.py)"]
-        C2["Client 2 (test_client.py)"]
-        C3["Client 3 (test_client.py)"]
-    end
-    subgraph TES[Trading Engine Server]
-        TES1["TES (portfolio1)"]
-        TES2["TES (portfolio2)"]
-    end
-    subgraph Server
-        OBS["Order Book Server (order_book_server.py)"]
-        STRAT["BasicStrategy (basic.py)"]
-    end
-    subgraph Database
-        KDB["KDB+ (trade table)"]
-        SQLITE["SQLite (clients.db)"]
-    end
-
-    C1 --|RabbitMQ|--> TES1
-    C2 --|RabbitMQ|--> TES1
-    C3 --|RabbitMQ|--> TES2
-    TES1 -- manages --> OBS
-    TES2 -- manages --> OBS
-    OBS -- calls --> STRAT
-    STRAT -- inserts/queries --> KDB
-    TES1 -- manages/queries --> SQLITE
-    TES2 -- manages/queries --> SQLITE
-    TES1 -- tracks --> Portfolio1["Portfolio 1 PnL"]
-    TES2 -- tracks --> Portfolio2["Portfolio 2 PnL"]
-```
-
-This diagram shows how clients communicate with the Order Book Server via RabbitMQ, the server uses the strategy for order logic, and the strategy records trades in the KDB+ database.
 
 ## Contributing
 
