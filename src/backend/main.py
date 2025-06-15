@@ -1,20 +1,51 @@
-from engine import TradingEngine
+from config.logger import setup_logger
+import logging
+from clients.trader import TraderClient
+from servers.trading_engine import TradingEngineServer
 from strategy.basic import BasicStrategy
-import subprocess
-import sys
-import os
 from servers.order_book import OrderBookServer
+import argparse
 
-if __name__ == '__main__':
-    # Initialise the trading engine
-    # engine = TradingEngine()
-    # print('Trading engine ready.')
+setup_logger()
+logger = logging.getLogger(__name__)
 
-    # Initialise the basic strategy
-    strategy = BasicStrategy()
-    print('Basic strategy initialised.')
 
-    server = OrderBookServer(strategy=strategy)  # Pass the strategy instance
-    server.run()
+def main():
+    parser = argparse.ArgumentParser(description="Trading Engine Entry Point")
+    parser.add_argument(
+        "-s", "--server", choices=["TES", "OBS"], help="Server to start (TES or OBS)"
+    )
+    parser.add_argument(
+        "-c",
+        "--client",
+        choices=["trader", "algotrader"],
+        help="Client to start (trader or algotrader)",
+    )
+    args = parser.parse_args()
 
-    # You can add more logic here if needed
+    if args.server:
+        if args.server == "TES":
+            logger.info("Starting Trading Engine Server (TES)")
+            engine = TradingEngineServer()
+            engine.run()
+        elif args.server == "OBS":
+            logger.info("Starting Order Book Server (OBS)")
+            # You can add strategy selection logic here if needed
+            server = OrderBookServer()
+            server.run()
+    elif args.client:
+        if args.client == "trader":
+            logger.info("Starting Trader Client")
+            client = TraderClient()
+            client.run()
+    #     elif args.client == 'algotrader':
+    #         logger.info("Starting AlgoTrader Client")
+    #         from clients.test_client import AlgoTraderClient
+    #         client = AlgoTraderClient()
+    #         client.run()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
