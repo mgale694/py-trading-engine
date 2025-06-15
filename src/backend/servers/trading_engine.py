@@ -1,3 +1,4 @@
+import uuid
 import pika
 import json
 import time
@@ -10,18 +11,26 @@ TES_QUEUE = "tes_requests"
 TES_RESPONSE_QUEUE = "tes_responses"
 
 OBS_QUEUE = "obs_requests"
+OBS_RESPONSE_QUEUE = "obs_responses"
 
 
 class TradingEngineServer:
     def __init__(self):
         # Initialize RabbitMQ connection and channel
-        logger.info("Connecting to RabbitMQ")
-        self.connection = pika.BlockingConnection(
+        logger.info("(TES): Connecting to RabbitMQ")
+        self.tes_connection = pika.BlockingConnection(
             pika.ConnectionParameters(host=RABBITMQ_HOST)
         )
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=TES_QUEUE)
-        self.channel.queue_declare(queue=TES_RESPONSE_QUEUE)
+        self.tes_channel = self.tes_connection.channel()
+        self.tes_channel.queue_declare(queue=TES_QUEUE)
+        self.tes_channel.queue_declare(queue=TES_RESPONSE_QUEUE)
+
+        self.obs_connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=RABBITMQ_HOST)
+        )
+        self.obs_channel = self.obs_connection.channel()
+        self.obs_channel.queue_declare(queue=OBS_QUEUE)
+        self.obs_channel.queue_declare(queue=OBS_RESPONSE_QUEUE)
 
     def on_request(self, ch, method, props, body):
         request = json.loads(body)
@@ -53,15 +62,60 @@ class TradingEngineServer:
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
+    def send_request(self, request):
+        logger.info(f"Sending request: {request}")
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+        self.obs_channel.basic_publish(
+            exchange="",
+            routing_key="obs_requests",
+            properties=pika.BasicProperties(
+                reply_to=self.callback_queue,
+                correlation_id=self.corr_id,
+            ),
+            body=json.dumps(request),
+        )
+        while self.response is None:
+            self.obs_connection.process_data_events()
+        return self.response
+
+    def check_obs_connection(self):
+        """
+        Try to connect to the Order Book Server (OBS) by sending a test message and waiting for a response.
+        Returns True if OBS is reachable, False otherwise.
+        """
+        # Check OBS connectivity using send_request
+        try:
+            response = self.send_request({"action": "ping"})
+            if response and response.get("status") == "ok":
+                logger.info("Successfully connected to Order Book Server (OBS).")
+                return True
+            else:
+                logger.error("Order Book Server (OBS) did not respond as expected.")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to connect to Order Book Server (OBS): {e}")
+            logger.info(
+                "Try running the Order Book Server (OBS) first: \npython main.py -s OBS"
+            )
+            return False
+
     def run(self):
+        # Check OBS connectivity using check_obs_connection
+        if not self.check_obs_connection():
+            logger.error("Failed to connect to Order Book Server (OBS). Exiting.")
+            return
+
         logger.info(
             "TradingEngineServer started. Waiting for client requests via RabbitMQ..."
         )
-        self.channel.basic_qos(prefetch_count=1)
-        self.channel.basic_consume(queue=TES_QUEUE, on_message_callback=self.on_request)
+        self.tes_channel.basic_qos(prefetch_count=1)
+        self.tes_channel.basic_consume(
+            queue=TES_QUEUE, on_message_callback=self.on_request
+        )
         try:
             while True:
-                self.connection.process_data_events(time_limit=1)
+                self.tes_connection.process_data_events(time_limit=1)
         except KeyboardInterrupt:
             logger.info("TradingEngineServer stopped by user.")
-            self.connection.close()
+            self.tes_connection.close()

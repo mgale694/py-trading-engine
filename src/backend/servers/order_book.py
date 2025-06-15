@@ -12,6 +12,7 @@ OBS_RESPONSE_QUEUE = "obs_responses"
 class OrderBookServer:
     def __init__(self):
         # Initialize RabbitMQ connection and channel
+        logger.info("(OBS): Connecting to RabbitMQ")
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host=RABBITMQ_HOST)
         )
