@@ -1,3 +1,4 @@
+import time
 import pika
 import json
 import logging
@@ -22,10 +23,21 @@ class OrderBookServer:
 
     def on_request(self, ch, method, props, body):
         request = json.loads(body)
-        response = {"status": "ok", "received": request}
+        action = request.get("action")
+        response = {}
+
+        if action == "connect":
+            logger.info(
+                f"Engine {request.get('engine_id')} connected at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(request.get('timestamp')))}"
+            )
+            response = {
+                "status": "ok",
+                "message": f"Engine {request.get('engine_id')} connected to OBS at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(request.get('timestamp')))}",
+            }
+
         ch.basic_publish(
             exchange="",
-            routing_key=OBS_RESPONSE_QUEUE,
+            routing_key=props.reply_to if props.reply_to else OBS_RESPONSE_QUEUE,
             properties=pika.BasicProperties(correlation_id=props.correlation_id),
             body=json.dumps(response),
         )

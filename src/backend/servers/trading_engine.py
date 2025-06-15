@@ -16,6 +16,8 @@ OBS_RESPONSE_QUEUE = "obs_responses"
 
 class TradingEngineServer:
     def __init__(self):
+        self._id = str(uuid.uuid4())
+
         # Initialize RabbitMQ connection and channel
         logger.info("(TES): Connecting to RabbitMQ")
         self.tes_connection = pika.BlockingConnection(
@@ -29,8 +31,20 @@ class TradingEngineServer:
             pika.ConnectionParameters(host=RABBITMQ_HOST)
         )
         self.obs_channel = self.obs_connection.channel()
-        self.obs_channel.queue_declare(queue=OBS_QUEUE)
-        self.obs_channel.queue_declare(queue=OBS_RESPONSE_QUEUE)
+        self.obs_callback_queue = self.obs_channel.queue_declare(
+            queue="", exclusive=True
+        ).method.queue
+        self.obs_channel.basic_consume(
+            queue=self.obs_callback_queue,
+            on_message_callback=self.on_response,
+            auto_ack=True,
+        )
+        self.response = None
+        self.corr_id = None
+
+    def on_response(self, ch, method, props, body):
+        if self.corr_id == props.correlation_id:
+            self.response = json.loads(body)
 
     def on_request(self, ch, method, props, body):
         request = json.loads(body)
@@ -62,7 +76,7 @@ class TradingEngineServer:
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    def send_request(self, request):
+    def send_request(self, request, timeout=5):
         logger.info(f"Sending request: {request}")
         self.response = None
         self.corr_id = str(uuid.uuid4())
@@ -70,23 +84,31 @@ class TradingEngineServer:
             exchange="",
             routing_key="obs_requests",
             properties=pika.BasicProperties(
-                reply_to=self.callback_queue,
+                reply_to=self.obs_callback_queue,
                 correlation_id=self.corr_id,
             ),
             body=json.dumps(request),
         )
+        start_time = time.time()
         while self.response is None:
             self.obs_connection.process_data_events()
+            if time.time() - start_time > timeout:
+                logger.error("Timeout waiting for response from OBS.")
+                break
         return self.response
 
-    def check_obs_connection(self):
-        """
-        Try to connect to the Order Book Server (OBS) by sending a test message and waiting for a response.
-        Returns True if OBS is reachable, False otherwise.
-        """
-        # Check OBS connectivity using send_request
+    def check_obs_connection(self, timeout=5):
+        # Check OBS connectivity using send_request with timeout
         try:
-            response = self.send_request({"action": "ping"})
+            response = self.send_request(
+                {
+                    "action": "connect",
+                    "engine_id": self._id,
+                    "timestamp": time.time(),
+                    "description": "Connecting TES to Order Book Server (OBS)",
+                },
+                timeout=timeout,
+            )
             if response and response.get("status") == "ok":
                 logger.info("Successfully connected to Order Book Server (OBS).")
                 return True

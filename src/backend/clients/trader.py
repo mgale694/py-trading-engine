@@ -7,12 +7,16 @@ import time
 
 logger = logging.getLogger(__name__)
 
+RABBITMQ_HOST = "localhost"
+
 
 class TraderClient:
-    def __init__(self, host="localhost"):
+    def __init__(self):
         self._id = str(uuid.uuid4())
         # Initialize RabbitMQ connection and channel
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host=RABBITMQ_HOST)
+        )
         self.channel = self.connection.channel()
         self.callback_queue = self.channel.queue_declare(
             queue="", exclusive=True
