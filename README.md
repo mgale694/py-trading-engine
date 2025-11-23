@@ -2,6 +2,8 @@
 
 A modular, microservices-based Python trading system designed for real-time trading, order management, and analytics. Built with a service-oriented architecture using RabbitMQ for inter-service communication, multiple specialized databases, and both trader-facing and internal analytics frontends.
 
+✨ **New:** Enhanced CLI with [Typer](https://typer.tiangolo.com/) and [Rich](https://rich.readthedocs.io/) for beautiful terminal output! See [CLI Guide](docs/CLI_GUIDE.md) for details.
+
 ## Project Structure
 
 ```
@@ -206,19 +208,19 @@ flowchart TB
 **Terminal 1: Start Order Book Server**
 
 ```bash
-python main.py -s OBS
+python main.py server OBS
 ```
 
 **Terminal 2: Start Trading Engine Server**
 
 ```bash
-python main.py -s TES
+python main.py server TES
 ```
 
 **Terminal 3: Start Trader Portal**
 
 ```bash
-python main.py --frontend trader
+python main.py frontend trader
 # or directly:
 streamlit run src/frontend/trader-portal/app.py
 ```
@@ -226,20 +228,151 @@ streamlit run src/frontend/trader-portal/app.py
 **Terminal 4: Start Test Client (optional)**
 
 ```bash
-python main.py -c trader
+python main.py client trader
 ```
 
 **Analytics Dashboard (optional)**
 
 ```bash
-python main.py --frontend analytics
+python main.py frontend analytics
 ```
+
+> **Note:** The CLI now uses clear subcommands instead of flags. See [CLI Guide](docs/CLI_GUIDE.md) for the full command reference.
 
 ### Verify Installation
 
 1. Check RabbitMQ Management UI: http://localhost:15672 (guest/guest)
 2. Check Trader Portal: http://localhost:8501
 3. Check Analytics Dashboard: http://localhost:8502
+
+## Development Mode 🚀
+
+For rapid development and testing, use **Development Mode** with automated mock data and simulated traders.
+
+### 🎯 Quick Dev Setup (One Command)
+
+```bash
+./scripts/setup_dev.sh
+```
+
+This automatically:
+
+- Initializes all databases
+- Loads mock data (20 users, 100 orders, 50 trades, 10 instruments)
+- Verifies RabbitMQ and KDB+ are running
+- Provides next steps
+
+### 📊 Mock Data Generator
+
+Populate databases with realistic test data:
+
+```bash
+python main.py --init-mock-data
+```
+
+**What gets created:**
+
+- **20 test users** with realistic usernames and starting balances
+- **100 historical orders** across 10 symbols (AAPL, GOOGL, MSFT, TSLA, etc.)
+- **50 executed trades** with realistic pricing
+- **10 trading instruments** with price ranges
+- **40-60 positions** distributed across users
+- **Analytics data** including PnL and performance metrics
+
+### 🤖 Simulated Traders
+
+Run automated trading bots that place random orders:
+
+```bash
+# Start 5 simulated traders
+python main.py --simulated-traders 5
+
+# Start 10 traders
+python main.py --simulated-traders 10
+```
+
+**Simulated traders automatically:**
+
+- Connect to TES via RabbitMQ (like real clients)
+- Place random buy/sell orders every ~5 seconds
+- Trade across dev symbols (AAPL, GOOGL, MSFT, TSLA, AMZN)
+- Print statistics every 30 seconds
+- Run continuously until stopped (Ctrl+C)
+
+**Example output:**
+
+```
+===========================================================
+SIMULATED TRADERS STATISTICS
+===========================================================
+SimTrader_1     🟢 Running    Orders: 45    Responses: 45
+SimTrader_2     🟢 Running    Orders: 43    Responses: 43
+SimTrader_3     🟢 Running    Orders: 47    Responses: 47
+-----------------------------------------------------------
+TOTAL           Active: 3     Orders: 135   Responses: 135
+===========================================================
+```
+
+### 🧪 Full System Test with Simulated Load
+
+```bash
+# Terminal 1: Order Book Server
+python main.py -s OBS
+
+# Terminal 2: Trading Engine Server
+python main.py -s TES
+
+# Terminal 3: Simulated Traders (5 automated bots)
+python main.py --simulated-traders 5
+
+# Terminal 4: Analytics Dashboard (monitor activity)
+python main.py --frontend analytics
+```
+
+Watch orders flow through the system in real-time! 📈
+
+### ⚙️ Dev Configuration
+
+Development features are controlled by `config/dev.yaml`:
+
+```yaml
+dev:
+  initialize_mock_data: true # Auto-load mock data
+  enable_simulated_traders: true # Allow simulated traders
+  mock_data:
+    num_users: 20 # Number of test users
+    num_orders: 100 # Historical orders
+    num_trades: 50 # Executed trades
+  simulated_traders:
+    count: 5 # Default trader count
+    trade_frequency: 5.0 # Seconds between trades
+    symbols: # Symbols to trade
+      - AAPL
+      - GOOGL
+      - MSFT
+      - TSLA
+      - AMZN
+```
+
+**Note:** Production environment (`config/prod.yaml`) disables all dev features automatically.
+
+### 📚 Complete Dev Mode Documentation
+
+For detailed information on mock data generation, simulated traders, customization, troubleshooting, and workflows:
+
+👉 **[DEV_MODE.md](DEV_MODE.md)** - Complete development mode guide
+
+### 🔄 Reset Development Environment
+
+```bash
+# Delete databases
+rm src/database/transactional/trading_engine.db
+rm src/database/analytics/analytics.db
+rm src/database/utilities/utilities.db
+
+# Reinitialize with fresh data
+./scripts/setup_dev.sh
+```
 
 ## Development
 

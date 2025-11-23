@@ -43,3 +43,25 @@ features:
   enable_kdb: true
   enable_analytics_aggregation: true
   enable_real_time_updates: false
+
+# Development-specific features
+dev:
+  # Mock data generation
+  initialize_mock_data: true
+  mock_data:
+    num_users: 20
+    num_orders: 100
+    num_trades: 50
+    time_spread_hours: 24
+
+  # Simulated traders
+  enable_simulated_traders: true
+  simulated_traders:
+    count: 5
+    trade_frequency: 5.0 # Average seconds between trades
+    symbols:
+      - AAPL
+      - GOOGL
+      - MSFT
+      - TSLA
+      - AMZN

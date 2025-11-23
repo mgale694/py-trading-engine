@@ -51,3 +51,8 @@ monitoring:
 security:
   jwt_secret: ${JWT_SECRET}
   jwt_expiration: 3600
+
+# Production - disable dev features
+dev:
+  initialize_mock_data: false
+  enable_simulated_traders: false

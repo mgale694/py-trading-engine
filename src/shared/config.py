@@ -102,3 +102,20 @@ class Config:
             'analytics': self.get('database.analytics', 'src/database/analytics/analytics.db'),
             'utilities': self.get('database.utilities', 'src/database/utilities/utilities.db'),
         }
+    
+    def get_dev_config(self) -> Dict[str, Any]:
+        """Get development configuration."""
+        return {
+            'initialize_mock_data': self.get('dev.initialize_mock_data', False),
+            'mock_data': self.get('dev.mock_data', {}),
+            'enable_simulated_traders': self.get('dev.enable_simulated_traders', False),
+            'simulated_traders': self.get('dev.simulated_traders', {}),
+        }
+    
+    def should_initialize_mock_data(self) -> bool:
+        """Check if mock data should be initialized."""
+        return self.env == 'dev' and self.get('dev.initialize_mock_data', False)
+    
+    def should_enable_simulated_traders(self) -> bool:
+        """Check if simulated traders should be enabled."""
+        return self.env == 'dev' and self.get('dev.enable_simulated_traders', False)
