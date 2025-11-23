@@ -170,9 +170,6 @@ if submit_button:
             with conf_col2:
                 st.json({"response": response_data})
 
-            # Balloons for successful order
-            st.balloons()
-
             # Option to place another order
             if st.button("📝 Place Another Order"):
                 st.rerun()

@@ -73,7 +73,7 @@ flowchart TB
         AD["Analytics Dashboard<br/>(Streamlit)"]
     end
 
-    TP -->|REST/WS| TES
+    TP -->|RabbitMQ or REST/WS| TES
     TC -->|RabbitMQ| TES
     TES <-->|RabbitMQ| RMQ
     RMQ <-->|RabbitMQ| OBS
