@@ -187,16 +187,20 @@ def get_orders(trader_id: Optional[str] = None, limit: int = 100):
 
     if trader_id:
         query = """
-            SELECT * FROM orders
-            WHERE trader_id = ?
-            ORDER BY timestamp DESC
+            SELECT id as order_id, user_id, symbol, side, quantity, price, status,
+                   created_at as timestamp
+            FROM orders
+            WHERE user_id = ?
+            ORDER BY created_at DESC
             LIMIT ?
         """
         cursor.execute(query, (trader_id, limit))
     else:
         query = """
-            SELECT * FROM orders
-            ORDER BY timestamp DESC
+            SELECT id as order_id, user_id, symbol, side, quantity, price, status,
+                   created_at as timestamp
+            FROM orders
+            ORDER BY created_at DESC
             LIMIT ?
         """
         cursor.execute(query, (limit,))
@@ -213,15 +217,17 @@ def get_trades(trader_id: Optional[str] = None, limit: int = 100):
 
     if trader_id:
         query = """
-            SELECT * FROM trades
-            WHERE buy_trader_id = ? OR sell_trader_id = ?
+            SELECT id as trade_id, user_id, symbol, side, quantity, price, timestamp
+            FROM trades
+            WHERE user_id = ?
             ORDER BY timestamp DESC
             LIMIT ?
         """
-        cursor.execute(query, (trader_id, trader_id, limit))
+        cursor.execute(query, (trader_id, limit))
     else:
         query = """
-            SELECT * FROM trades
+            SELECT id as trade_id, user_id, symbol, side, quantity, price, timestamp
+            FROM trades
             ORDER BY timestamp DESC
             LIMIT ?
         """
@@ -233,13 +239,20 @@ def get_trades(trader_id: Optional[str] = None, limit: int = 100):
 
 
 def get_positions(trader_id: str):
-    """Get positions for a trader."""
+    """Get positions for a trader.
+
+    Note: This queries the positions table which is linked to portfolios.
+    Since the schema doesn't have trader_id directly in positions,
+    we need to join through portfolios->users.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     query = """
-        SELECT * FROM positions
-        WHERE trader_id = ?
+        SELECT p.id, p.symbol, p.quantity, p.avg_price, p.updated_at
+        FROM positions p
+        JOIN portfolios pf ON p.portfolio_id = pf.id
+        WHERE pf.user_id = ?
     """
     cursor.execute(query, (trader_id,))
 
@@ -254,8 +267,9 @@ def get_portfolio(trader_id: str):
     cursor = conn.cursor()
 
     query = """
-        SELECT * FROM portfolios
-        WHERE trader_id = ?
+        SELECT id, user_id, name, created_at
+        FROM portfolios
+        WHERE user_id = ?
     """
     cursor.execute(query, (trader_id,))
 
@@ -264,4 +278,11 @@ def get_portfolio(trader_id: str):
 
     if result:
         return dict(result)
-    return None
+
+    # Return a default portfolio structure if none exists
+    return {
+        "user_id": trader_id,
+        "cash": 100000.0,  # Starting cash
+        "equity": 0.0,
+        "total_value": 100000.0,
+    }
