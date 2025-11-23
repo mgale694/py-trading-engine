@@ -1,7 +1,7 @@
 """Database connection manager for transactional database."""
 import sqlite3
 from pathlib import Path
-from .models import SCHEMA
+from models import SCHEMA
 
 DB_PATH = Path(__file__).parent / 'trading_engine.db'
 
