@@ -68,13 +68,14 @@ def send_order_to_tes(
     trader_name = get_trader_name()
 
     order = {
-        "action": side,
+        "action": "place_order",
         "trader_id": trader_id,
         "trader_name": trader_name,
         "symbol": symbol,
+        "side": side,  # 'buy' or 'sell'
         "quantity": quantity,
         "price": price,
-        "order_type": order_type,
+        "type": order_type,  # 'limit' or 'market'
     }
 
     try:

@@ -2,11 +2,15 @@
 Trading Engine Server (TES)
 Handles client registration, portfolio management, and routes trading actions to the order book server.
 """
-import uuid
-import pika
+
 import json
-import time
 import logging
+import sqlite3
+import time
+import uuid
+from pathlib import Path
+
+import pika
 
 logger = logging.getLogger(__name__)
 
@@ -17,23 +21,27 @@ TES_RESPONSE_QUEUE = "tes_responses"
 OBS_QUEUE = "obs_requests"
 OBS_RESPONSE_QUEUE = "obs_responses"
 
+# Database path
+DB_PATH = Path(__file__).parent.parent.parent / "database" / "transactional" / "trading_engine.db"
+
 
 class TradingEngineServer:
     def __init__(self):
         self._id = str(uuid.uuid4())
 
+        # Initialize database connection
+        self.db_conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        self.db_conn.row_factory = sqlite3.Row
+        logger.info(f"(TES): Connected to database at {DB_PATH}")
+
         # Initialize RabbitMQ connection and channel
         logger.info("(TES): Connecting to RabbitMQ")
-        self.tes_connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST)
-        )
+        self.tes_connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
         self.tes_channel = self.tes_connection.channel()
         self.tes_channel.queue_declare(queue=TES_QUEUE)
         self.tes_channel.queue_declare(queue=TES_RESPONSE_QUEUE)
 
-        self.obs_connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST)
-        )
+        self.obs_connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
         self.obs_channel = self.obs_connection.channel()
         self.obs_callback_queue = self.obs_channel.queue_declare(
             queue="", exclusive=True
@@ -63,14 +71,62 @@ class TradingEngineServer:
                 "status": "ok",
                 "message": f"Trader {request.get('trader_id')} connected to TES at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(request.get('timestamp')))}",
             }
+        elif action == "place_order":
+            # Handle order placement - persist to database
+            try:
+                trader_id = request.get("trader_id")
+                symbol = request.get("symbol")
+                side = request.get("side")
+                quantity = request.get("quantity")
+                price = request.get("price")
+                # order_type = request.get("type", "limit")  # Future use for order types
+
+                # Get or create user_id from trader_id (UUID)
+                cursor = self.db_conn.cursor()
+
+                # Check if user exists with this trader_id as username
+                cursor.execute("SELECT id FROM users WHERE username = ?", (trader_id,))
+                user = cursor.fetchone()
+
+                if not user:
+                    # Create new user for this trader
+                    cursor.execute(
+                        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                        (trader_id, "simulated"),  # Password hash not needed for simulated traders
+                    )
+                    user_id = cursor.lastrowid
+                    logger.info(f"Created new user {user_id} for trader {trader_id[:8]}...")
+                else:
+                    user_id = user[0]
+
+                # Insert order into database
+                cursor.execute(
+                    """INSERT INTO orders (user_id, symbol, side, quantity, price, status)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (user_id, symbol, side, quantity, price, "open"),
+                )
+                order_id = cursor.lastrowid
+                self.db_conn.commit()
+
+                logger.info(f"Order {order_id} placed: {side} {quantity} {symbol} @ {price}")
+                response = {
+                    "status": "ok",
+                    "message": "Order placed successfully",
+                    "order_id": order_id,
+                }
+            except Exception as e:
+                logger.error(f"Error placing order: {e}")
+                response = {"status": "error", "message": str(e)}
         elif action == "buy":
-            # Simulate a buy action
-            logger.info(f"Processing buy request: {request}")
-            response = {"status": "ok", "message": "Buy action processed"}
+            # Legacy support - redirect to place_order
+            request["action"] = "place_order"
+            request["side"] = "buy"
+            return self.on_request(ch, method, props, json.dumps(request).encode())
         elif action == "sell":
-            # Simulate a sell action
-            logger.info(f"Processing sell request: {request}")
-            response = {"status": "ok", "message": "Sell action processed"}
+            # Legacy support - redirect to place_order
+            request["action"] = "place_order"
+            request["side"] = "sell"
+            return self.on_request(ch, method, props, json.dumps(request).encode())
         # ----------------------------------
         ch.basic_publish(
             exchange="",
@@ -128,9 +184,7 @@ class TradingEngineServer:
                 return False
         except Exception as e:
             logger.error(f"Failed to connect to Order Book Server (OBS): {e}")
-            logger.info(
-                "Try running the Order Book Server (OBS) first: \npython main.py -s OBS"
-            )
+            logger.info("Try running the Order Book Server (OBS) first: \npython main.py -s OBS")
             return False
 
     def run(self):
@@ -139,16 +193,13 @@ class TradingEngineServer:
             logger.error("Failed to connect to Order Book Server (OBS). Exiting.")
             return
 
-        logger.info(
-            "TradingEngineServer started. Waiting for client requests via RabbitMQ..."
-        )
+        logger.info("TradingEngineServer started. Waiting for client requests via RabbitMQ...")
         self.tes_channel.basic_qos(prefetch_count=1)
-        self.tes_channel.basic_consume(
-            queue=TES_QUEUE, on_message_callback=self.on_request
-        )
+        self.tes_channel.basic_consume(queue=TES_QUEUE, on_message_callback=self.on_request)
         try:
             while True:
                 self.tes_connection.process_data_events(time_limit=1)
         except KeyboardInterrupt:
             logger.info("TradingEngineServer stopped by user.")
             self.tes_connection.close()
+            self.db_conn.close()
