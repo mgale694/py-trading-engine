@@ -187,12 +187,14 @@ def get_orders(trader_id: Optional[str] = None, limit: int = 100):
     cursor = conn.cursor()
 
     if trader_id:
+        # Join with users table to filter by trader UUID (stored as username)
         query = """
-            SELECT id as order_id, user_id, symbol, side, quantity, price, status,
-                   created_at as timestamp
-            FROM orders
-            WHERE user_id = ?
-            ORDER BY created_at DESC
+            SELECT o.id as order_id, o.user_id, o.symbol, o.side, o.quantity, o.price, o.status,
+                   o.created_at as timestamp
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            WHERE u.username = ?
+            ORDER BY o.created_at DESC
             LIMIT ?
         """
         cursor.execute(query, (trader_id, limit))
@@ -217,11 +219,13 @@ def get_trades(trader_id: Optional[str] = None, limit: int = 100):
     cursor = conn.cursor()
 
     if trader_id:
+        # Join with users table to filter by trader UUID (stored as username)
         query = """
-            SELECT id as trade_id, user_id, symbol, side, quantity, price, timestamp
-            FROM trades
-            WHERE user_id = ?
-            ORDER BY timestamp DESC
+            SELECT t.id as trade_id, t.user_id, t.symbol, t.side, t.quantity, t.price, t.timestamp
+            FROM trades t
+            JOIN users u ON t.user_id = u.id
+            WHERE u.username = ?
+            ORDER BY t.timestamp DESC
             LIMIT ?
         """
         cursor.execute(query, (trader_id, limit))
@@ -249,11 +253,13 @@ def get_positions(trader_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Join through portfolios and users to match trader UUID
     query = """
         SELECT p.id, p.symbol, p.quantity, p.avg_price, p.updated_at
         FROM positions p
         JOIN portfolios pf ON p.portfolio_id = pf.id
-        WHERE pf.user_id = ?
+        JOIN users u ON pf.user_id = u.id
+        WHERE u.username = ?
     """
     cursor.execute(query, (trader_id,))
 
@@ -267,10 +273,12 @@ def get_portfolio(trader_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Join with users table to match trader UUID
     query = """
-        SELECT id, user_id, name, created_at
-        FROM portfolios
-        WHERE user_id = ?
+        SELECT p.id, p.user_id, p.name, p.created_at
+        FROM portfolios p
+        JOIN users u ON p.user_id = u.id
+        WHERE u.username = ?
     """
     cursor.execute(query, (trader_id,))
 

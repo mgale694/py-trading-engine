@@ -11,7 +11,7 @@ import streamlit as st
 # Add utils to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "utils"))
 
-from trading import get_trader_id, get_trader_name, get_trades
+from trading import get_orders, get_trader_id, get_trader_name
 
 st.set_page_config(page_title="Trade History", page_icon="📈", layout="wide")
 
@@ -28,30 +28,32 @@ st.sidebar.write(f"**ID:** `{trader_id[:8]}...`")
 st.sidebar.markdown("---")
 
 # View toggle
-view_mode = st.sidebar.radio("View Mode", ["My Trades Only", "All Market Trades"], index=0)
+view_mode = st.sidebar.radio("View Mode", ["My Orders", "All Market Orders"], index=0)
 
 if st.sidebar.button("🔄 Refresh"):
     st.rerun()
 
-# Get trades based on view mode
-if view_mode == "My Trades Only":
-    trades = get_trades(trader_id=trader_id, limit=100)
-    st.header(f"📊 My Trade History ({len(trades)} trades)")
+# Get orders (showing as "trades" until matching engine is implemented)
+st.info("ℹ️ Showing order history. Trade execution/matching coming soon!")
+
+if view_mode == "My Orders":
+    trades = get_orders(trader_id=trader_id, limit=100)
+    st.header(f"📊 My Order History ({len(trades)} orders)")
 else:
-    trades = get_trades(limit=100)
-    st.header(f"📊 Market Trade History ({len(trades)} trades)")
+    trades = get_orders(limit=100)
+    st.header(f"📊 Market Order History ({len(trades)} orders)")
 
 # Display trades
 if trades:
     df = pd.DataFrame(trades)
 
-    # Trade statistics
+    # Order statistics
     st.subheader("📈 Summary Statistics")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Total Trades", len(df))
+        st.metric("Total Orders", len(df))
 
     with col2:
         total_volume = df["quantity"].sum() if "quantity" in df.columns else 0
@@ -69,8 +71,8 @@ if trades:
         )
         st.metric("Total Value", f"${total_value:,.2f}")
 
-    # Trades table
-    st.subheader("📋 Trade Details")
+    # Orders table
+    st.subheader("📋 Order Details")
 
     # Filter options
     col1, col2 = st.columns(2)
@@ -87,7 +89,7 @@ if trades:
 
     with col2:
         # Date range filter
-        show_latest = st.slider("Show latest N trades", min_value=10, max_value=100, value=50)
+        show_latest = st.slider("Show latest N orders", min_value=10, max_value=100, value=50)
 
     # Apply filters
     filtered_df = df.copy()
@@ -157,27 +159,27 @@ if trades:
                 y="price",
                 size="quantity",
                 color="symbol" if "symbol" in timeline_df.columns else None,
-                title="Trade Timeline",
+                title="Order Timeline",
                 labels={"timestamp": "Time", "price": "Price ($)"},
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Not enough data for timeline analysis")
 
-    # Performance metrics (for "My Trades Only" mode)
-    if view_mode == "My Trades Only" and len(filtered_df) > 0:
-        st.subheader("💼 My Performance")
+    # Performance metrics (for "My Orders" mode)
+    if view_mode == "My Orders" and len(filtered_df) > 0:
+        st.subheader("💼 My Order Activity")
 
         perf_col1, perf_col2, perf_col3 = st.columns(3)
 
         with perf_col1:
             # Count buy vs sell
-            if "buy_trader_id" in filtered_df.columns and "sell_trader_id" in filtered_df.columns:
-                buy_count = (filtered_df["buy_trader_id"] == trader_id).sum()
-                sell_count = (filtered_df["sell_trader_id"] == trader_id).sum()
+            if "side" in filtered_df.columns:
+                buy_count = (filtered_df["side"] == "buy").sum()
+                sell_count = (filtered_df["side"] == "sell").sum()
 
-                st.metric("Buy Trades", buy_count)
-                st.metric("Sell Trades", sell_count)
+                st.metric("Buy Orders", buy_count)
+                st.metric("Sell Orders", sell_count)
 
         with perf_col2:
             # Average trade size
@@ -195,10 +197,10 @@ if trades:
                 st.metric("Symbols Traded", unique_symbols)
 
                 most_traded = filtered_df["symbol"].mode()[0] if len(filtered_df) > 0 else "N/A"
-                st.metric("Most Traded", most_traded)
+                st.metric("Most Ordered", most_traded)
 
 else:
-    st.info("No trades yet. Place orders to start trading!")
+    st.info("No orders yet. Place orders to start trading!")
 
     if st.button("📝 Place Your First Order", use_container_width=False):
         st.switch_page("pages/1_📝_Place_Order.py")
