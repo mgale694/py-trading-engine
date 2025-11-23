@@ -1,0 +1,21 @@
+# Base dependencies for all environments
+pika>=1.3.0
+pykx>=2.0.0
+streamlit>=1.28.0
+pandas>=2.0.0
+plotly>=5.17.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# CLI Enhancement
+typer>=0.9.0
+rich>=13.0.0
+
+# Database
+# SQLite is built-in to Python
+# For PostgreSQL support (optional):
+# psycopg2-binary>=2.9.0
+
+# Utilities
+python-dateutil>=2.8.0
+pytz>=2023.3

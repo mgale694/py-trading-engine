@@ -1,0 +1,58 @@
+# Production Environment Configuration
+
+rabbitmq:
+  host: ${RABBITMQ_HOST}
+  port: ${RABBITMQ_PORT}
+  username: ${RABBITMQ_USER}
+  password: ${RABBITMQ_PASSWORD}
+  management_port: 15672
+
+kdb:
+  host: ${KDB_HOST}
+  port: ${KDB_PORT}
+
+database:
+  transactional: ${DB_TRANSACTIONAL_PATH}
+  analytics: ${DB_ANALYTICS_PATH}
+  utilities: ${DB_UTILITIES_PATH}
+
+servers:
+  tes:
+    host: 0.0.0.0
+    port: 8000
+    workers: 4
+  obs:
+    host: 0.0.0.0
+    port: 8001
+    workers: 4
+
+logging:
+  level: INFO
+  file: /var/log/trading_system/trading_system.log
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+frontend:
+  trader_portal:
+    host: 0.0.0.0
+    port: 8501
+  analytics:
+    host: 0.0.0.0
+    port: 8502
+
+features:
+  enable_kdb: true
+  enable_analytics_aggregation: true
+  enable_real_time_updates: true
+
+monitoring:
+  prometheus_port: 9090
+  sentry_dsn: ${SENTRY_DSN}
+
+security:
+  jwt_secret: ${JWT_SECRET}
+  jwt_expiration: 3600
+
+# Production - disable dev features
+dev:
+  initialize_mock_data: false
+  enable_simulated_traders: false
