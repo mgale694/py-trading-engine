@@ -195,3 +195,5 @@ cython_debug/
 
 # Ignore SQLite database files
 *.db
+
+.DS_Store

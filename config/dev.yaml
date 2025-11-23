@@ -1,0 +1,45 @@
+# Development Environment Configuration
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  username: guest
+  password: guest
+  management_port: 15672
+
+kdb:
+  host: localhost
+  port: 8080
+
+database:
+  transactional: src/database/transactional/trading_engine.db
+  analytics: src/database/analytics/analytics.db
+  utilities: src/database/utilities/utilities.db
+
+servers:
+  tes:
+    host: localhost
+    port: 8000
+    workers: 1
+  obs:
+    host: localhost
+    port: 8001
+    workers: 1
+
+logging:
+  level: DEBUG
+  file: logs/trading_system.log
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+frontend:
+  trader_portal:
+    host: localhost
+    port: 8501
+  analytics:
+    host: localhost
+    port: 8502
+
+features:
+  enable_kdb: true
+  enable_analytics_aggregation: true
+  enable_real_time_updates: false

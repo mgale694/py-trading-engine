@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: trading_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - trading_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kdb:
+    image: kxsys/kdb
+    container_name: trading_kdb
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src/database/historical/schemas.q:/opt/kx/q/schemas.q
+      - kdb_data:/opt/kx/q/data
+    networks:
+      - trading_network
+    command: q /opt/kx/q/schemas.q -p 8080
+
+  obs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.obs
+    container_name: trading_obs
+    depends_on:
+      - rabbitmq
+      - kdb
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      KDB_HOST: kdb
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  tes:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tes
+    container_name: trading_tes
+    depends_on:
+      - obs
+      - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  trader_portal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: trading_trader_portal
+    ports:
+      - "8501:8501"
+    depends_on:
+      - tes
+    environment:
+      STREAMLIT_SERVER_PORT: 8501
+      DB_PATH: /app/data
+    volumes:
+      - trader_data:/app/data
+    networks:
+      - trading_network
+    command: streamlit run src/frontend/trader-portal/app.py
+
+  analytics:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: trading_analytics
+    ports:
+      - "8502:8502"
+    depends_on:
+      - tes
+    environment:
+      STREAMLIT_SERVER_PORT: 8502
+      DB_PATH: /app/data
+    volumes:
+      - trader_data:/app/data
+    networks:
+      - trading_network
+    command: streamlit run src/frontend/analytics/app.py
+
+volumes:
+  rabbitmq_data:
+  kdb_data:
+  trader_data:
+
+networks:
+  trading_network:
+    driver: bridge
