@@ -1,100 +1,137 @@
-"""Trader Portal - Frontend for client traders to execute trades and view analytics."""
-import streamlit as st
-import sqlite3
+"""
+Trader Portal - Home Page
+Multi-page Streamlit app for client traders.
+"""
+
+import sys
 from pathlib import Path
-import pandas as pd
 
+import streamlit as st
 
-def get_db_connection():
-    """Get database connection."""
-    db_path = Path(__file__).parent.parent.parent / 'database' / 'transactional' / 'trading_engine.db'
-    conn = sqlite3.connect(db_path)
-    return conn
+# Add utils to path
+sys.path.insert(0, str(Path(__file__).parent / "utils"))
 
+from trading import connect_trader_to_tes, get_trader_id, get_trader_name
 
-def load_table(table_name):
-    """Load table data."""
-    conn = get_db_connection()
-    df = pd.read_sql_query(f'SELECT * FROM {table_name}', conn)
-    conn.close()
-    return df
+# Page configuration
+st.set_page_config(
+    page_title="Trader Portal",
+    page_icon="💼",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
+# Initialize trader session
+trader_id = get_trader_id()
+trader_name = get_trader_name()
 
-st.set_page_config(page_title="Trader Portal", layout="wide")
+# Connect to TES if not already connected
+if "connected_to_tes" not in st.session_state:
+    with st.spinner("Connecting to Trading Engine..."):
+        result = connect_trader_to_tes()
+        if result["success"]:
+            st.session_state.connected_to_tes = True
+        else:
+            st.warning(f"Could not connect to TES: {result.get('error', 'Unknown error')}")
+            st.info("You can still view data, but order submission will be unavailable.")
+            st.session_state.connected_to_tes = False
 
-st.title('🏦 Trading Engine - Trader Portal')
+# Main page content
+st.write("# Welcome to the Trading Portal! 💼")
 
-# Sidebar navigation
-page = st.sidebar.selectbox("Navigation", ["Dashboard", "Order Entry", "Positions", "Analytics"])
+# Sidebar trader info
+st.sidebar.success("Select a page above.")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 👤 Trader Info")
+st.sidebar.markdown(f"**Name:** {trader_name}")
+st.sidebar.markdown(f"**ID:** `{trader_id[:8]}...`")
 
-if page == "Dashboard":
-    st.header('📊 Dashboard')
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader('Recent Orders')
-        try:
-            orders_df = load_table('orders')
-            st.dataframe(orders_df.tail(10), use_container_width=True)
-        except Exception as e:
-            st.error(f"Error loading orders: {e}")
-    
-    with col2:
-        st.subheader('Recent Trades')
-        try:
-            trades_df = load_table('trades')
-            st.dataframe(trades_df.tail(10), use_container_width=True)
-        except Exception as e:
-            st.error(f"Error loading trades: {e}")
+if st.session_state.get("connected_to_tes"):
+    st.sidebar.success("🟢 Connected to TES")
+else:
+    st.sidebar.error("🔴 Not connected to TES")
 
-elif page == "Order Entry":
-    st.header('📝 Order Entry')
-    
-    with st.form("order_form"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            symbol = st.text_input("Symbol", "AAPL")
-            side = st.selectbox("Side", ["buy", "sell"])
-            quantity = st.number_input("Quantity", min_value=1, value=100)
-        
-        with col2:
-            price = st.number_input("Price", min_value=0.01, value=100.0, step=0.01)
-            order_type = st.selectbox("Order Type", ["limit", "market"])
-        
-        submitted = st.form_submit_button("Submit Order")
-        
-        if submitted:
-            st.success(f"Order submitted: {side.upper()} {quantity} {symbol} @ ${price}")
-            # TODO: Connect to TES API
+# Welcome content
+st.markdown(
+    f"""
+    This is your personal trading portal for executing trades and monitoring your portfolio.
 
-elif page == "Positions":
-    st.header('💼 Positions')
-    
+    ### 👈 Select a page from the sidebar
+
+    **Available pages:**
+    - **📊 Dashboard** - View market overview and recent activity
+    - **📝 Place Order** - Submit buy/sell orders to the trading engine
+    - **💼 My Portfolio** - View your positions and portfolio performance
+    - **📈 Trade History** - Review your trading history and analytics
+    - **🔍 Market Data** - Real-time market data and order book
+
+    ### 🚀 Getting Started
+
+    1. Navigate to **Place Order** to submit your first trade
+    2. Check **My Portfolio** to see your positions
+    3. Review **Trade History** for performance analytics
+
+    ### 📊 Your Trader Profile
+
+    You have a unique trader ID that tracks all your orders and trades.
+    This ID is persistent across sessions and stored securely.
+
+    ### ⚠️ Important Notes
+
+    - All orders are sent to the **Trading Engine Server (TES)**
+    - Orders are matched by the **Order Book Server (OBS)**
+    - Real-time data is pulled from the **transactional database**
+    - Your trader ID: `{trader_id}`
+
+    ### 🔐 Connection Status
+
+    """
+)
+
+# Connection status
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.session_state.get("connected_to_tes"):
+        st.success("✅ Trading Engine Server")
+    else:
+        st.error("❌ Trading Engine Server")
+
+with col2:
     try:
-        # TODO: Load positions from database
-        st.info("Positions view coming soon...")
-    except Exception as e:
-        st.error(f"Error loading positions: {e}")
+        from trading import get_db_connection
 
-elif page == "Analytics":
-    st.header('📈 Analytics')
-    
-    tab1, tab2 = st.tabs(["Performance", "Trade History"])
-    
-    with tab1:
-        st.subheader("Performance Metrics")
-        # TODO: Add performance metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Trades", "0")
-        col2.metric("P&L", "$0.00")
-        col3.metric("Win Rate", "0%")
-    
-    with tab2:
-        st.subheader("Trade History")
-        try:
-            trades_df = load_table('trades')
-            st.dataframe(trades_df, use_container_width=True)
-        except Exception as e:
-            st.error(f"Error loading trades: {e}")
+        conn = get_db_connection()
+        conn.close()
+        st.success("✅ Database Connection")
+    except Exception as e:
+        st.error(f"❌ Database Connection: {e}")
+
+with col3:
+    import pika
+
+    try:
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host="localhost", connection_attempts=1, retry_delay=1)
+        )
+        connection.close()
+        st.success("✅ RabbitMQ Broker")
+    except Exception:
+        st.error("❌ RabbitMQ Broker")
+
+# Quick actions
+st.markdown("### 🎯 Quick Actions")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("📝 Place New Order", use_container_width=True):
+        st.switch_page("pages/1_📝_Place_Order.py")
+
+with col2:
+    if st.button("💼 View Portfolio", use_container_width=True):
+        st.switch_page("pages/2_💼_My_Portfolio.py")
+
+with col3:
+    if st.button("📈 Trade History", use_container_width=True):
+        st.switch_page("pages/3_📈_Trade_History.py")
