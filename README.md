@@ -360,7 +360,7 @@ dev:
 
 For detailed information on mock data generation, simulated traders, customization, troubleshooting, and workflows:
 
-👉 **[DEV_MODE.md](DEV_MODE.md)** - Complete development mode guide
+👉 **[DEV_MODE.md](docs/DEV_MODE.md)** - Complete development mode guide
 
 ### 🔄 Reset Development Environment
 
@@ -375,6 +375,16 @@ rm src/database/utilities/utilities.db
 ```
 
 ## Development
+
+### Documentation
+
+Comprehensive documentation is available in the [docs/](docs/) directory:
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get running in 5 minutes
+- **[Development Mode](docs/DEV_MODE.md)** - Mock data and simulated traders
+- **[CLI Guide](docs/CLI_GUIDE.md)** - Complete command reference
+- **[Migration Guide](docs/MIGRATION.md)** - Migrating from old structure
+- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - Architecture details
 
 ### Project Organization
 

@@ -165,7 +165,7 @@ Check Terminal 1 (OBS) and Terminal 2 (TES) for log messages about order process
    - [Database](src/database/README.md)
    - [Frontend](src/frontend/README.md)
    - [Messaging](src/messaging/README.md)
-3. Review [MIGRATION.md](MIGRATION.md) if migrating existing code
+3. Review [MIGRATION.md](./MIGRATION.md) if migrating existing code
 4. Check out the Docker setup: `cd docker && docker-compose up`
 
 ## Stopping Services

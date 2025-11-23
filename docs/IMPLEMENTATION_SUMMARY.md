@@ -290,8 +290,8 @@ Trader Portal ────→ TES ←──→ RabbitMQ ←──→ OBS ──�
 ## 📚 Resources
 
 - **Main Documentation**: [README.md](README.md)
-- **Quick Start**: [QUICKSTART.md](QUICKSTART.md)
-- **Migration Guide**: [MIGRATION.md](MIGRATION.md)
+- **Quick Start**: [QUICKSTART.md](./QUICKSTART.md)
+- **Migration Guide**: [MIGRATION.md](./MIGRATION.md)
 - **Component READMEs**: See each `src/*/README.md`
 
 ---

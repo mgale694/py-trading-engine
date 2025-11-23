@@ -106,6 +106,6 @@ export ENV=prod                          # Set globally
 ## 📚 Documentation
 
 - [Main README](../README.md) - System overview
-- [Dev Mode Guide](../DEV_MODE.md) - Development features
+- [Dev Mode Guide](./DEV_MODE.md) - Development features
 - [CLI Guide](./CLI_GUIDE.md) - Detailed CLI documentation
 - [Before/After](./CLI_BEFORE_AFTER.md) - Migration guide
